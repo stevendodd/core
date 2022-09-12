@@ -1,0 +1,13 @@
+{
+  "domain": "ttlock",
+  "name": "TTLock",
+  "config_flow": false,
+  "documentation": "https://www.home-assistant.io/integrations/ttlock",
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": ["@stevendodd"],
+  "iot_class": "local_polling"
+}
