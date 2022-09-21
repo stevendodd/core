@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from abc import ABC
+from dataclasses import dataclass
 from datetime import timedelta
 import logging
 
-from homeassistant.components.select import SelectEntity
+from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import DEVICE_DEFAULT_NAME
 from homeassistant.core import HomeAssistant
@@ -13,10 +14,41 @@ from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, SELECT_SETTINGS_DATA
+from .const import DOMAIN
 from .helper import Plenticore, SelectDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class PlenticoreRequiredKeysMixin:
+    """A class that describes required properties for plenticore select entities."""
+
+    module_id: str
+    options: list
+    is_on: str
+
+
+@dataclass
+class PlenticoreSelectEntityDescription(
+    SelectEntityDescription, PlenticoreRequiredKeysMixin
+):
+    """A class that describes plenticore select entities."""
+
+
+SELECT_SETTINGS_DATA = [
+    PlenticoreSelectEntityDescription(
+        module_id="devices:local",
+        key="battery_charge",
+        name="Battery Charging / Usage mode",
+        options=[
+            "None",
+            "Battery:SmartBatteryControl:Enable",
+            "Battery:TimeControl:Enable",
+        ],
+        is_on="1",
+    )
+]
 
 
 async def async_setup_entry(
@@ -51,7 +83,7 @@ async def async_setup_entry(
                 platform_name=entry.title,
                 device_class="kostal_plenticore__battery",
                 module_id=select.module_id,
-                data_id=select.data_id,
+                data_id=select.key,
                 name=select.name,
                 current_option="None",
                 options=select.options,
@@ -77,7 +109,7 @@ class PlenticoreDataSelect(CoordinatorEntity, SelectEntity, ABC):
         device_class: str | None,
         module_id: str,
         data_id: str,
-        name: str,
+        name: str | None,
         current_option: str | None,
         options: list[str],
         is_on: str,

@@ -3,8 +3,6 @@
 To update, run python3 -m script.hassfest
 """
 
-# fmt: off
-
 FLOWS = {
     "integration": [
         "abode",
@@ -116,7 +114,6 @@ FLOWS = {
         "flipr",
         "flo",
         "flume",
-        "flunearyou",
         "flux_led",
         "forecast_solar",
         "forked_daapd",
@@ -172,6 +169,7 @@ FLOWS = {
         "hyperion",
         "ialarm",
         "iaqualink",
+        "ibeacon",
         "icloud",
         "ifttt",
         "inkbird",
@@ -205,6 +203,7 @@ FLOWS = {
         "laundrify",
         "led_ble",
         "lg_soundbar",
+        "lidarr",
         "life360",
         "lifx",
         "litejet",
@@ -456,7 +455,7 @@ FLOWS = {
         "zerproc",
         "zha",
         "zwave_js",
-        "zwave_me"
+        "zwave_me",
     ],
     "helper": [
         "derivative",
@@ -466,6 +465,6 @@ FLOWS = {
         "switch_as_x",
         "threshold",
         "tod",
-        "utility_meter"
-    ]
+        "utility_meter",
+    ],
 }

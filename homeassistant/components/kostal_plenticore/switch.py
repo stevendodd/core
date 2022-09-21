@@ -2,21 +2,55 @@
 from __future__ import annotations
 
 from abc import ABC
+from dataclasses import dataclass
 from datetime import timedelta
 import logging
 from typing import Any
 
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, SWITCH_SETTINGS_DATA
+from .const import DOMAIN
 from .helper import SettingDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class PlenticoreRequiredKeysMixin:
+    """A class that describes required properties for plenticore switch entities."""
+
+    module_id: str
+    is_on: str
+    on_value: str
+    on_label: str
+    off_value: str
+    off_label: str
+
+
+@dataclass
+class PlenticoreSwitchEntityDescription(
+    SwitchEntityDescription, PlenticoreRequiredKeysMixin
+):
+    """A class that describes plenticore switch entities."""
+
+
+SWITCH_SETTINGS_DATA = [
+    PlenticoreSwitchEntityDescription(
+        module_id="devices:local",
+        key="Battery:Strategy",
+        name="Battery Strategy",
+        is_on="1",
+        on_value="1",
+        on_label="Automatic",
+        off_value="2",
+        off_label="Automatic economical",
+    ),
+]
 
 
 async def async_setup_entry(
@@ -36,13 +70,13 @@ async def async_setup_entry(
         plenticore,
     )
     for switch in SWITCH_SETTINGS_DATA:
-        if switch.module_id not in available_settings_data or switch.data_id not in (
+        if switch.module_id not in available_settings_data or switch.key not in (
             setting.id for setting in available_settings_data[switch.module_id]
         ):
             _LOGGER.debug(
                 "Skipping non existing setting data %s/%s",
                 switch.module_id,
-                switch.data_id,
+                switch.key,
             )
             continue
 
@@ -52,7 +86,7 @@ async def async_setup_entry(
                 entry.entry_id,
                 entry.title,
                 switch.module_id,
-                switch.data_id,
+                switch.key,
                 switch.name,
                 switch.is_on,
                 switch.on_value,
@@ -61,7 +95,7 @@ async def async_setup_entry(
                 switch.off_label,
                 plenticore.device_info,
                 f"{entry.title} {switch.name}",
-                f"{entry.entry_id}_{switch.module_id}_{switch.data_id}",
+                f"{entry.entry_id}_{switch.module_id}_{switch.key}",
             )
         )
 
@@ -80,7 +114,7 @@ class PlenticoreDataSwitch(CoordinatorEntity, SwitchEntity, ABC):
         platform_name: str,
         module_id: str,
         data_id: str,
-        name: str,
+        name: str | None,
         is_on: str,
         on_value: str,
         on_label: str,
