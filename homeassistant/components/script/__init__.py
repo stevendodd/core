@@ -8,6 +8,7 @@ from typing import Any, cast
 import voluptuous as vol
 from voluptuous.humanize import humanize_error
 
+from homeassistant.components import websocket_api
 from homeassistant.components.blueprint import CONF_USE_BLUEPRINT, BlueprintInputs
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -222,6 +223,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(
         DOMAIN, SERVICE_TOGGLE, toggle_service, schema=SCRIPT_TURN_ONOFF_SCHEMA
     )
+    websocket_api.async_register_command(hass, websocket_config)
 
     return True
 
@@ -269,30 +271,6 @@ async def _async_process_config(hass, config, component) -> bool:
 
     await component.async_add_entities(entities)
 
-    async def service_handler(service: ServiceCall) -> None:
-        """Execute a service call to script.<script name>."""
-        entity_registry = er.async_get(hass)
-        entity_id = entity_registry.async_get_entity_id(DOMAIN, DOMAIN, service.service)
-        script_entity = component.get_entity(entity_id)
-        await script_entity.async_turn_on(
-            variables=service.data, context=service.context
-        )
-
-    # Register services for all entities that were created successfully.
-    for entity in entities:
-        hass.services.async_register(
-            DOMAIN, entity.unique_id, service_handler, schema=SCRIPT_SERVICE_SCHEMA
-        )
-
-        # Register the service description
-        service_desc = {
-            CONF_NAME: entity.name,
-            CONF_DESCRIPTION: entity.description,
-            CONF_FIELDS: entity.fields,
-        }
-        unique_id = cast(str, entity.unique_id)
-        async_set_service_schema(hass, DOMAIN, unique_id, service_desc)
-
     return blueprints_used
 
 
@@ -325,7 +303,7 @@ class ScriptEntity(ToggleEntity, RestoreEntity):
             variables=cfg.get(CONF_VARIABLES),
         )
         self._changed = asyncio.Event()
-        self._raw_config = raw_config
+        self.raw_config = raw_config
         self._trace_config = cfg[CONF_TRACE]
         self._blueprint_inputs = blueprint_inputs
 
@@ -406,7 +384,7 @@ class ScriptEntity(ToggleEntity, RestoreEntity):
         with trace_script(
             self.hass,
             self.unique_id,
-            self._raw_config,
+            self.raw_config,
             self._blueprint_inputs,
             context,
             self._trace_config,
@@ -427,8 +405,26 @@ class ScriptEntity(ToggleEntity, RestoreEntity):
         """
         await self.script.async_stop()
 
+    async def _service_handler(self, service: ServiceCall) -> None:
+        """Execute a service call to script.<script name>."""
+        await self.async_turn_on(variables=service.data, context=service.context)
+
     async def async_added_to_hass(self) -> None:
-        """Restore last triggered on startup."""
+        """Restore last triggered on startup and register service."""
+
+        unique_id = cast(str, self.unique_id)
+        self.hass.services.async_register(
+            DOMAIN, unique_id, self._service_handler, schema=SCRIPT_SERVICE_SCHEMA
+        )
+
+        # Register the service description
+        service_desc = {
+            CONF_NAME: cast(er.RegistryEntry, self.registry_entry).name or self.name,
+            CONF_DESCRIPTION: self.description,
+            CONF_FIELDS: self.fields,
+        }
+        async_set_service_schema(self.hass, DOMAIN, unique_id, service_desc)
+
         if state := await self.async_get_last_state():
             if last_triggered := state.attributes.get("last_triggered"):
                 self.script.last_triggered = parse_datetime(last_triggered)
@@ -439,3 +435,28 @@ class ScriptEntity(ToggleEntity, RestoreEntity):
 
         # remove service
         self.hass.services.async_remove(DOMAIN, self.unique_id)
+
+
+@websocket_api.websocket_command({"type": "script/config", "entity_id": str})
+def websocket_config(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Get script config."""
+    component: EntityComponent[ScriptEntity] = hass.data[DOMAIN]
+
+    script = component.get_entity(msg["entity_id"])
+
+    if script is None:
+        connection.send_error(
+            msg["id"], websocket_api.const.ERR_NOT_FOUND, "Entity not found"
+        )
+        return
+
+    connection.send_result(
+        msg["id"],
+        {
+            "config": script.raw_config,
+        },
+    )
