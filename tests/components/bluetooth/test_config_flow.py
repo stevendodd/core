@@ -1,16 +1,16 @@
 """Test the bluetooth config flow."""
-
 from unittest.mock import patch
+
+from bluetooth_adapters import DEFAULT_ADDRESS, AdapterDetails
 
 from homeassistant import config_entries
 from homeassistant.components.bluetooth.const import (
     CONF_ADAPTER,
     CONF_DETAILS,
     CONF_PASSIVE,
-    DEFAULT_ADDRESS,
     DOMAIN,
-    AdapterDetails,
 )
+from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.setup import async_setup_component
 
@@ -37,7 +37,6 @@ async def test_options_flow_disabled_not_setup(
             "id": 5,
             "type": "config_entries/get",
             "domain": "bluetooth",
-            "type_filter": "integration",
         }
     )
     response = await ws_client.receive_json()
@@ -127,11 +126,14 @@ async def test_async_step_user_only_allows_one(hass, macos_adapter):
     assert result["reason"] == "no_adapters"
 
 
-async def test_async_step_integration_discovery(hass):
+async def test_async_step_integration_discovery(hass: HomeAssistant) -> None:
     """Test setting up from integration discovery."""
 
     details = AdapterDetails(
-        address="00:00:00:00:00:01", sw_version="1.23.5", hw_version="1.2.3"
+        address="00:00:00:00:00:01",
+        sw_version="1.23.5",
+        hw_version="1.2.3",
+        manufacturer="ACME",
     )
 
     result = await hass.config_entries.flow.async_init(
@@ -160,7 +162,10 @@ async def test_async_step_integration_discovery_during_onboarding_one_adapter(
 ):
     """Test setting up from integration discovery during onboarding."""
     details = AdapterDetails(
-        address="00:00:00:00:00:01", sw_version="1.23.5", hw_version="1.2.3"
+        address="00:00:00:00:00:01",
+        sw_version="1.23.5",
+        hw_version="1.2.3",
+        manufacturer="ACME",
     )
 
     with patch(
@@ -188,10 +193,16 @@ async def test_async_step_integration_discovery_during_onboarding_two_adapters(
 ):
     """Test setting up from integration discovery during onboarding."""
     details1 = AdapterDetails(
-        address="00:00:00:00:00:01", sw_version="1.23.5", hw_version="1.2.3"
+        address="00:00:00:00:00:01",
+        sw_version="1.23.5",
+        hw_version="1.2.3",
+        manufacturer="ACME",
     )
     details2 = AdapterDetails(
-        address="00:00:00:00:00:02", sw_version="1.23.5", hw_version="1.2.3"
+        address="00:00:00:00:00:02",
+        sw_version="1.23.5",
+        hw_version="1.2.3",
+        manufacturer="ACME",
     )
 
     with patch(
@@ -227,7 +238,10 @@ async def test_async_step_integration_discovery_during_onboarding_two_adapters(
 async def test_async_step_integration_discovery_during_onboarding(hass, macos_adapter):
     """Test setting up from integration discovery during onboarding."""
     details = AdapterDetails(
-        address=DEFAULT_ADDRESS, sw_version="1.23.5", hw_version="1.2.3"
+        address=DEFAULT_ADDRESS,
+        sw_version="1.23.5",
+        hw_version="1.2.3",
+        manufacturer="ACME",
     )
 
     with patch(
@@ -250,10 +264,15 @@ async def test_async_step_integration_discovery_during_onboarding(hass, macos_ad
     assert len(mock_onboarding.mock_calls) == 1
 
 
-async def test_async_step_integration_discovery_already_exists(hass):
+async def test_async_step_integration_discovery_already_exists(
+    hass: HomeAssistant,
+) -> None:
     """Test setting up from integration discovery when an entry already exists."""
     details = AdapterDetails(
-        address="00:00:00:00:00:01", sw_version="1.23.5", hw_version="1.2.3"
+        address="00:00:00:00:00:01",
+        sw_version="1.23.5",
+        hw_version="1.2.3",
+        manufacturer="ACME",
     )
 
     entry = MockConfigEntry(domain=DOMAIN, unique_id="00:00:00:00:00:01")
@@ -341,7 +360,6 @@ async def test_options_flow_disabled_macos(
             "id": 5,
             "type": "config_entries/get",
             "domain": "bluetooth",
-            "type_filter": "integration",
         }
     )
     response = await ws_client.receive_json()
@@ -371,7 +389,6 @@ async def test_options_flow_enabled_linux(
             "id": 5,
             "type": "config_entries/get",
             "domain": "bluetooth",
-            "type_filter": "integration",
         }
     )
     response = await ws_client.receive_json()
